@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>GeoRoute Jogja — Rute Persebaran Geowisata Yogyakarta</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    /* ---------- Layout ---------- */
+    :root{--sidebar-w:340px;} 
+    html,body,#map{height:100%;margin:0;padding:0}
+    body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;display:flex}
+    #sidebar{width:var(--sidebar-w);padding:18px;background:#fff;box-shadow:2px 0 6px rgba(0,0,0,0.08);overflow:auto}
+    #map{flex:1}
+
+    #infoPanel h3{margin:4px 0 6px;font-size:13px}
+    .kpi{font-weight:700;font-size:15px}
+    .muted{color:#666;font-size:12px}
+
+    label{display:block;margin-top:8px}
+    select,input,button{font-size:14px}
+    .btn{display:inline-block;padding:8px 10px;border-radius:6px;border:1px solid #bdbdbd;background:#fff;cursor:pointer}
+    .btn.primary{background:#2b7cff;color:#fff;border-color:transparent}
+    .btn.ghost{background:transparent}
+
+    .geolist{margin-top:12px;padding:0;list-style:none;max-height:48vh;overflow:auto}
+    .geolist li{padding:8px;border-radius:6px;margin-bottom:6px;cursor:pointer;border:1px solid transparent}
+    .geolist li:hover{background:#f4f7ff;border-color:#e0e8ff}
+    .geolist li.selected{background:#e6f0ff;border-color:#a9c9ff}
+    .cat{display:inline-block;font-size:11px;padding:2px 6px;border-radius:999px;background:#eee;margin-left:8px}
+
+    .controls{display:flex;gap:8px;margin-top:12px}
+    .small{font-size:13px;color:#444}
+    #starthint{margin-top:8px;font-size:13px;color:#666}
+
+    /* infoPanel contents */
+    #infoPanel h3{margin:6px 0 8px;font-size:15px}
+    .kpi{font-weight:700;font-size:18px}
+    .muted{color:#666;font-size:13px}
+
+    /* responsive */
+    @media (max-width:1000px){
+      :root{--sidebar-w:300px}
+      #infoPanel{display:none}
+    }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h1>Rute Persebaran Geowisata Yogyakarta</h1>
+    <p class="lead">Pilih lokasi geowisata dari daftar di bawah sebagai <b>Tujuan</b>.
+    Klik peta untuk menentukan <b>Titik Awal</b> (lokasi user). Pilih profil rute, lalu tekan <b>Buat Rute</b>.</p>
+
+    <div class="toprow">
+      <div style="flex:1">
+        <label class="small">Profile Rute</label>
+        <select id="profile">
+          <option value="driving">Driving (mobil)</option>
+          <option value="cycling">Cycling (sepeda)</option>
+        </select>
+      </div>
+      <div style="width:78px;text-align:right">
+        <button id="clear" class="btn">Clear</button>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="btn-create" class="btn primary">Buat Rute</button>
+      <button id="btn-zoomall" class="btn">Zoom All</button>
+    </div>
+
+    <button id="btn-lokasi" class="btn" style="margin-top:8px; width:100%;">
+        Lokasi Saya
+    </button>
+
+    <div id="starthint">Titik awal: <span id="start-label" class="muted">(klik peta untuk memilih)</span></div>
+
+    <h3 style="margin-top:12px">Daftar Geowisata</h3>
+    <ul id="geosite-list" class="geolist"></ul>
+
+    <div style="margin-top:10px;font-size:13px;color:#444">
+      <div><b>Legenda:</b></div>
+      <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+        <svg width="18" height="18"><use href="#icon-merapi"/></svg> <span class="small">Merapi (vulkanik)</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+        <svg width="18" height="18"><use href="#icon-karst"/></svg> <span class="small">Karst (batuan)</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+        <svg width="18" height="18"><use href="#icon-pantai"/></svg> <span class="small">Pantai / Tektonik</span>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:6px;align-items:center">
+        <svg width="18" height="18"><use href="#icon-kultur"/></svg> <span class="small">Geokultur (warisan budaya)</span>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="map"></div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Inline SVG sprite for icons (used in legend and for data-urls) -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <g id="icon-merapi"><path d="M4 20l8-16 8 16H4z" fill="#2b7cff"/></g>
+      <g id="icon-karst"><path d="M3 19l4-9 3 6 3-8 4 11H3z" fill="#6a5acd"/></g>
+      <g id="icon-pantai"><path d="M2 18c1.5 0 2.2-1 3.5-1s2 1 3.5 1 2.2-1 3.5-1 2 1 3.5 1 2.2-1 3.5-1v2H2v-2z" fill="#00bfa5"/></g>
+      <g id="icon-kultur"><path d="M3 10l9-6 9 6v2H3v-2zm2 3h14v7H5v-7z" fill="#ff8a65"/></g>
+    </defs>
+  </svg>
+
+  <script>
+    // =================== Data Geowisata ===================
+    const geowisata = [
+      { name: "Museum Gunung Merapi", coords: [-7.6112, 110.4300], cat: "Merapi" },
+      { name: "Kali Adem / area aliran lava", coords: [-7.5905, 110.4439], cat: "Merapi" },
+      { name: "Lava Bantal Berbah", coords: [-7.7758, 110.4637], cat: "Merapi" },
+      { name: "Batu Alien Bebeng", coords: [-7.6286, 110.4433], cat: "Merapi" },
+      { name: "The Lost World Castle", coords: [-7.8010, 110.3890], cat: "Merapi" },
+      { name: "Bunker Kaliadem", coords: [-7.5860, 110.4463], cat: "Merapi" },
+      { name: "Kaliurang volcanic landscape", coords: [-7.6125, 110.4206], cat: "Merapi" },
+
+      { name: "Goa Pindul", coords: [-7.9315, 110.6167], cat: "Karst" },
+      { name: "Goa Jomblang", coords: [-8.0287, 110.6432], cat: "Karst" },
+      { name: "Luweng Sriti", coords: [-8.1124, 110.5399], cat: "Karst" },
+      { name: "Bukit Bintang", coords: [-8.1319, 110.5785], cat: "Karst" },
+      { name: "Pantai Siung", coords: [-8.1833, 110.6689], cat: "Karst" },
+      { name: "Bukit Ngingrong", coords: [-8.1289, 110.5851], cat: "Karst" },
+      { name: "Embung Nglanggeran + Gunung Api Purba", coords: [-7.8276, 110.5336], cat: "Karst" },
+      { name: "Air Terjun Sri Gethuk", coords: [-8.1097, 110.5445], cat: "Karst" },
+
+      { name: "Tebing Watu X (Parangtritis)", coords: [-8.0271, 110.3398], cat: "Pantai" },
+      { name: "Gumuk Pasir Parangkusumo", coords: [-8.0240, 110.3231], cat: "Pantai" },
+      { name: "Kali Opak fault scarp", coords: [-7.9570, 110.3562], cat: "Pantai" },
+      { name: "Pantai Glagah", coords: [-7.8176, 110.1009], cat: "Pantai" },
+      { name: "Bukit Menoreh", coords: [-7.7923, 110.0904], cat: "Pantai" },
+      { name: "Waduk Sermo", coords: [-7.8215, 110.1414], cat: "Pantai" },
+
+      { name: "Tugu – Sumbu Filosofi Gunung–Kraton–Laut", coords: [-7.7971, 110.3700], cat: "Geokultur" },
+      { name: "Keraton Yogyakarta & Alun-Alun", coords: [-7.7972, 110.3703], cat: "Geokultur" },
+      { name: "Panggung Krapyak", coords: [-7.8005, 110.3716], cat: "Geokultur" },
+      { name: "Tamansari (sistem hidrologi kuno)", coords: [-7.7976, 110.3679], cat: "Geokultur" }
+    ];
+
+    // =================== Map init ===================
+    const map = L.map('map', { zoomControl: true }).setView([-7.85,110.36], 10);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19}).addTo(map);
+
+    // SVG Icons → DataURL
+    function svgToDataUrl(svgString){
+      return 'data:image/svg+xml;utf8,' + encodeURIComponent(svgString);
+    }
+
+    const icons = {
+      Merapi: L.icon({ iconUrl: svgToDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M4 20l8-16 8 16H4z" fill="#2b7cff"/></svg>'), iconSize:[34,34], iconAnchor:[17,34]}),
+      Karst:  L.icon({ iconUrl: svgToDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 19l4-9 3 6 3-8 4 11H3z" fill="#6a5acd"/></svg>'), iconSize:[34,34], iconAnchor:[17,34]}),
+      Pantai: L.icon({ iconUrl: svgToDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M2 18c1.5 0 2.2-1 3.5-1s2 1 3.5 1 2.2-1 3.5-1 2 1 3.5 1 2.2-1 3.5-1v2H2v-2z" fill="#00bfa5"/></svg>'), iconSize:[34,34], iconAnchor:[17,34]}),
+      Geokultur: L.icon({ iconUrl: svgToDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 10l9-6 9 6v2H3v-2zm2 3h14v7H5v-7z" fill="#ff8a65"/></svg>'), iconSize:[34,34], iconAnchor:[17,34]}),
+    };
+
+    const iconSelected = L.icon({
+      iconUrl: svgToDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" fill="#ffd54f"/><path d="M7 12l2 2 5-6" stroke="#2b7cff" stroke-width="2" fill="none"/></svg>'),
+      iconSize:[40,40], iconAnchor:[20,40]
+    });
+
+    // =================== Render markers + list ===================
+    const markers = [];
+    const geositeListEl = document.getElementById('geosite-list');
+
+    geowisata.forEach((g, idx) => {
+      const m = L.marker(g.coords, { icon: icons[g.cat] })
+        .addTo(map)
+        .bindPopup(`<b>${g.name}</b><br><i>${g.cat}</i>`);
+      markers.push(m);
+
+      const li = document.createElement('li');
+      li.dataset.idx = idx;
+      li.innerHTML = `<strong>${g.name}</strong> <span class="cat">${g.cat}</span>`;
+      geositeListEl.appendChild(li);
+
+      li.onclick = () => selectDestination(idx);
+      m.on('click', () => selectDestination(idx));
+    });
+
+    let selectedDestination = null;
+    let startPoint = null;
+    let startMarker = null;
+    let routeLayer = null;
+
+    function clearSelectionVisuals(){
+      document.querySelectorAll('#geosite-list li').forEach(li => li.classList.remove('selected'));
+      markers.forEach((m,i) => m.setIcon(icons[geowisata[i].cat]));
+    }
+
+    function selectDestination(idx){
+      selectedDestination = idx;
+      clearSelectionVisuals();
+      document.querySelector(`#geosite-list li[data-idx='${idx}']`).classList.add('selected');
+      markers[idx].setIcon(iconSelected);
+      map.panTo(geowisata[idx].coords);
+    }
+
+    // =================== Set Start Point (map click) ===================
+    map.on('click', e => setStartPoint([e.latlng.lat, e.latlng.lng]));
+
+    function setStartPoint(latlng){
+      startPoint = latlng;
+
+      if (startMarker) map.removeLayer(startMarker);
+
+      startMarker = L.marker(latlng, {
+        icon: L.icon({
+          iconUrl: svgToDataUrl('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 2C8 2 5 6 5 9.5 5 13 12 22 12 22s7-9 7-12.5C19 6 16 2 12 2z" fill="#2b7cff"/></svg>'),
+          iconSize:[34,34], iconAnchor:[17,34]
+        })
+      }).addTo(map).bindPopup("<b>Lokasi Awal</b>").openPopup();
+
+      document.getElementById("start-label").textContent =
+        `${latlng[0].toFixed(5)}, ${latlng[1].toFixed(5)}`;
+    }
+
+    // =================== CLEAR ===================
+    document.getElementById('clear').onclick = () => {
+      selectedDestination = null;
+      startPoint = null;
+
+      if (startMarker) map.removeLayer(startMarker);
+      if (routeLayer) map.removeLayer(routeLayer);
+
+      startMarker = null;
+      routeLayer = null;
+
+      clearSelectionVisuals();
+      document.getElementById("start-label").textContent = "(klik peta untuk memilih)";
+      document.getElementById("status").textContent = "Belum ada rute";
+      document.getElementById("distance").textContent = "-";
+      document.getElementById("duration").textContent = "-";
+      document.getElementById("routeSteps").innerHTML = "";
+    };
+
+    // =================== Zoom All ===================
+    document.getElementById('btn-zoomall').onclick = () => {
+      map.fitBounds(L.featureGroup(markers).getBounds(), {padding:[40,40]});
+    };
+
+    // =================== BUAT RUTE (POPUP MODE) ===================
+    document.getElementById('btn-create').onclick = () => {
+        if (!startPoint) return alert("Klik peta untuk memilih titik awal.");
+        if (selectedDestination === null) return alert("Pilih tujuan geowisata.");
+
+        buatRuteDenganPopup(startPoint, geowisata[selectedDestination]);
+    };
+
+    // =================== OSRM POPUP ROUTE ===================
+    let infoPopup = null;
+
+    async function buatRuteDenganPopup(start, tujuan){
+        const profile = document.getElementById('profile').value;
+
+        const url = `https://router.project-osrm.org/route/v1/${profile}/${start[1]},${start[0]};${tujuan.coords[1]},${tujuan.coords[0]}?overview=full&geometries=geojson`;
+
+        try {
+            const res = await fetch(url);
+            const data = await res.json();
+
+            if (!data.routes?.length) {
+                alert("Tidak ada rute yang ditemukan");
+                return;
+            }
+
+            const r = data.routes[0];
+
+            if (routeLayer) map.removeLayer(routeLayer);
+            if (infoPopup) map.removeLayer(infoPopup);
+
+            // --- gambar rute ---
+            routeLayer = L.geoJSON(r.geometry, {
+                style: { color: "#2b7cff", weight: 5 }
+            }).addTo(map);
+
+            map.fitBounds(routeLayer.getBounds(), {padding:[40,40]});
+
+            // --- ambil titik tengah rute ---
+            const mid = r.geometry.coordinates[
+                Math.floor(r.geometry.coordinates.length / 2)
+            ];
+            const midLatLng = [mid[1], mid[0]];
+
+            // --- hitung jarak & durasi ---
+            const jarak = (r.distance / 1000).toFixed(2);
+            const durasi = Math.round(r.duration / 60);
+
+            // --- popup berisi foto + informasi ---
+            const kontenPopup = `
+                <div style="width:220px">
+                    <b>${tujuan.name}</b><br>
+                    <b>Jarak:</b> ${jarak} km<br>
+                    <b>Durasi:</b> ${durasi} menit
+                </div>
+            `;
+
+            infoPopup = L.popup()
+                .setLatLng(midLatLng)
+                .setContent(kontenPopup)
+                .openOn(map);
+
+        } catch (err) {
+            console.error(err);
+            alert("Gagal menghitung rute.");
+        }
+    }
+
+    // =================== GEOLOCATION BUTTON ===================
+    // === GEOLOCATION ADDED ===
+    document.getElementById("btn-lokasi").onclick = () => {
+        if (!navigator.geolocation) {
+            alert("Browser Anda tidak mendukung geolocation.");
+            return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+            pos => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+
+                console.log("Lokasi akurat:", pos);
+
+                setStartPoint([lat, lng]);       // pasang marker start
+                map.setView([lat, lng], 17);     // zoom lebih dekat
+            },
+            err => {
+                alert("Gagal mendapatkan lokasi: " + err.message);
+            },
+            {
+                enableHighAccuracy: true,  // WAJIB biar akurat
+                timeout: 15000,            // GPS dikasih waktu 15 detik
+                maximumAge: 0              // tidak memakai cache lokasi lama
+            }
+        );
+        };
+
+    // =================== Initial Zoom ===================
+    document.getElementById("btn-zoomall").click();
+</script>
+
+</body>
+</html>
