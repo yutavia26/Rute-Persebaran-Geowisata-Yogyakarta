@@ -10,7 +10,7 @@
     :root{--sidebar-w:340px;} 
     html,body,#map{height:100%;margin:0;padding:0}
     body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;display:flex}
-    #sidebar{width:var(--sidebar-w);padding:18px;background:#fff;box-shadow:2px 0 6px rgba(0,0,0,0.08);overflow:auto}
+    #sidebar{width:var(--sidebar-w);padding:18px;background:oklch(80.713% 0.01766 50.194);box-shadow:2px 0 6px rgba(0,0,0,0.08);overflow:auto}
     #map{flex:1}
 
     #infoPanel h3{margin:4px 0 6px;font-size:13px}
@@ -42,26 +42,41 @@
     @media (max-width: 900px){
 
       body{
-        display:block; /* tidak flex agar sidebar di atas map */
+        display:block;
       }
 
       #sidebar{
         position:relative;
         width:100%;
         height:auto;
-        max-height:50vh;  /* sidebar tidak terlalu panjang */
+
+        /* ----- PERKECILAN SIDEBAR ----- */
+        max-height:38vh;       /* sidebar jadi lebih pendek */
+        padding:10px 14px;     /* padding diperkecil */
+        font-size:14px;        /* tulisan diperkecil sedikit */
+
         overflow-y:auto;
         box-shadow:none;
         border-bottom:1px solid #ddd;
       }
 
+      h1{
+        font-size:18px !important;  /* judul lebih kecil */
+        margin-bottom:6px;
+      }
+
+      .geolist li{
+        padding:6px;
+        margin-bottom:4px;
+        font-size:13px;
+      }
+
       #map{
         width:100%;
-        height:50vh !important; /* map tetap terlihat besar */
+        height:62vh !important;  /* map lebih besar */
         flex:none;
       }
 
-      /* sembunyikan tombol menu karena tidak dibutuhkan */
       #menuBtn{
         display:none !important;
       }
@@ -75,7 +90,7 @@
   <div id="sidebar">
     <h1>Rute Persebaran Geowisata Yogyakarta</h1>
     <p class="lead">Pilih lokasi geowisata dari daftar di bawah sebagai <b>Tujuan</b>.
-    Klik peta untuk menentukan <b>Titik Awal</b> (lokasi user). Pilih profil rute, lalu tekan <b>Buat Rute</b>.</p>
+    Klik lokasi pada peta atau <b>Lokasi Saya</b> untuk menentukan <b>Titik Awal</b> (lokasi user). Lalu tekan <b>Buat Rute</b>.</p>
 
     <div class="toprow">
       <div style="flex:1">
@@ -85,14 +100,12 @@
           <option value="cycling">Cycling (sepeda)</option>
         </select>
       </div>
-      <div style="width:78px;text-align:right">
-        <button id="clear" class="btn">Clear</button>
-      </div>
     </div>
 
     <div class="controls">
       <button id="btn-create" class="btn primary">Buat Rute</button>
       <button id="btn-zoomall" class="btn">Zoom All</button>
+      <button id="clear" class="btn">Clear</button>
     </div>
 
     <button id="btn-lokasi" class="btn" style="margin-top:8px; width:100%;">
