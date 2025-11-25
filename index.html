@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
     /* ---------- Layout ---------- */
-    :root{--sidebar-w:260px;} 
+    :root{--sidebar-w:260px;--right-w:160px;} 
     html,body,#map{height:100%;margin:0;padding:0}
     body{font-family:Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;display:flex}
     #sidebar{width:var(--sidebar-w);padding:18px;background:oklch(80.713% 0.01766 50.194);box-shadow:2px 0 6px rgba(0,0,0,0.08);overflow:auto}
@@ -17,6 +17,8 @@
     .kpi{font-weight:700;font-size:15px}
     .muted{color:#666;font-size:12px}
 
+  @media(max-width:600px){#sidebar{width:200px;}#infoPanel{display:none;} }
+    
     label{display:block;margin-top:8px}
     select,input,button{font-size:14px}
     .btn{display:inline-block;padding:8px 10px;border-radius:6px;border:1px solid #bdbdbd;background:#fff;cursor:pointer}
