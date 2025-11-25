@@ -38,14 +38,65 @@
     .kpi{font-weight:700;font-size:18px}
     .muted{color:#666;font-size:13px}
 
-    /* responsive */
-    @media (max-width:1000px){
-      :root{--sidebar-w:300px}
-      #infoPanel{display:none}
+    /* ---------- RESPONSIVE (HP) — FIXED ---------- */
+    @media (max-width: 900px){
+
+      /* tombol hamburger muncul */
+      #menuBtn{
+        display:block !important;
+        position:absolute;
+        z-index:9999;
+        top:10px;
+        left:10px;
+        padding:10px 14px;
+        background:white;
+        border:1px solid #ccc;
+        border-radius:8px;
+        font-size:20px;
+      }
+
+      /* sidebar jadi drawer geser */
+      #sidebar{
+        position:absolute !important;
+        top:0;
+        left:-100%;
+        height:100%;
+        width:80%;
+        max-width:320px;
+        background:white;
+        z-index:9998;
+        transition:left .35s;
+        box-shadow:2px 0 10px rgba(0,0,0,0.25);
+      }
+
+      #sidebar.open{
+        left:0;
+      }
+
+      /* map full screen */
+      #map{
+        height:100vh !important;
+        flex:none !important;
+      }
+
+      /* body bukan flex agar sidebar tidak memaksa layout */
+      body{
+        display:block;
+      }
     }
+
+    /* ---------- DESKTOP MODE ---------- */
+    @media (min-width: 901px){
+      #menuBtn{
+        display:none !important;
+      }
+    }
+
   </style>
 </head>
 <body>
+  <!-- HAMBURGER BUTTON (UNTUK HP) -->
+  <button id="menuBtn">☰</button>
   <div id="sidebar">
     <h1>Rute Persebaran Geowisata Yogyakarta</h1>
     <p class="lead">Pilih lokasi geowisata dari daftar di bawah sebagai <b>Tujuan</b>.
@@ -340,6 +391,24 @@
             }
         );
         };
+
+    // ============ MOBILE MENU ============= //
+    const menuBtn = document.getElementById("menuBtn");
+    const sidebar = document.getElementById("sidebar");
+
+    // buka / tutup drawer
+    menuBtn.onclick = () => {
+      sidebar.classList.toggle("open");
+    };
+
+    // auto-menutup setelah memilih destinasi
+    document.querySelectorAll("#geosite-list li").forEach(li => {
+      li.addEventListener("click", () => {
+        if (window.innerWidth < 900){
+          sidebar.classList.remove("open");
+        }
+      });
+    });
 
     // =================== Initial Zoom ===================
     document.getElementById("btn-zoomall").click();
